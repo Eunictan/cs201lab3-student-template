@@ -39,6 +39,26 @@ public class Q1Test {
             this.right = right;
         }
     }
+
+    public static class Stack {
+        public int size = 0;
+        public ArrayList<TreeNode> stack = new ArrayList<>();
+
+        public void push(TreeNode node) {
+            stack.add(node);
+            size++;
+        }
+
+        public TreeNode pop() {
+            TreeNode remove = stack.remove(size - 1);
+            size--;
+            return remove;
+        }
+
+        public TreeNode peek() {
+            return stack.get(size - 1);
+        }
+    }
     
     public static void main(String[] args) {
 
@@ -106,17 +126,26 @@ public class Q1Test {
 
     // write your codes here
     public static String verify(String traversal1, String traversal2, String traversal3){
-        int[] t1 = Arrays.stream(traversal1.split("-"))
+        int[] t1;
+        int[] t2;
+        int[] t3;
+
+        try {
+        t1 = Arrays.stream(traversal1.split("-"))
                  .mapToInt(Integer::parseInt)
                  .toArray();
 
-        int[] t2 = Arrays.stream(traversal2.split("-"))
+        t2 = Arrays.stream(traversal2.split("-"))
                  .mapToInt(Integer::parseInt)
                  .toArray();
 
-        int[] t3 = Arrays.stream(traversal3.split("-"))
+        t3 = Arrays.stream(traversal3.split("-"))
                  .mapToInt(Integer::parseInt)
                  .toArray();
+
+        } catch (NumberFormatException e) {
+            return "Invalid traversals";
+        }
 
         if (t1.length != t2.length || t2.length != t3.length) return "Invalid traversals";
         int size = t1.length;
@@ -131,13 +160,13 @@ public class Q1Test {
             int pre = p[0];
             int in = p[1];
             int post = p[2];
+            
+            if (!isSorted(t[in])) continue;
 
-            if (buildTree(t[pre], t[in], t[post], size)) {
-                int prev = Integer.MIN_VALUE;
-                for (int n : t[in]) {
-                    if (n <= prev) continue;
-                    prev = n;
-                }
+            TreeNode root = buildTree(t[pre]);
+            if (root == null) continue;
+
+            if (valid(t[in], t[post], root, size)) {
                 String[] role = new String[3];
                 role[pre] = "Preorder";
                 role[in] = "Inorder";
@@ -150,56 +179,80 @@ public class Q1Test {
         return "Invalid traversals";
     }
 
-    public static boolean buildTree(int[] preorder, int[] inorder, int[] postorder, int size) {
-
-        Map<Integer, Integer> map = new HashMap<>();
-        for (int i = 0; i < inorder.length; i++) {
-            map.put(inorder[i], i);
+    private static boolean isSorted(int[] arr) {
+        for (int i = 1; i < arr.length; i++) {
+            if (arr[i] <= arr[i - 1]) return false;
         }
-        if (map.size() != inorder.length) return false;
+        return true;
+    }
 
-        TreeNode root;
-        try {
-            root = buildInPre(map, preorder, 0, preorder.length - 1, 0);
-        } catch (RuntimeException e) {
-            return false;
-        }
-
-        List<Integer> post = new ArrayList<>();
-        postorder(root, post);
-
+    public static boolean valid(int[] inorder, int[] postorder, TreeNode root, int size) {
+        int[] candidateInorder = inorder(root, size);
         for (int i = 0; i < size; i++) {
-            if (post.get(i) != postorder[i]) return false;
+            if (candidateInorder[i] != inorder[i]) return false;
+        }
+
+        int[] candidatePostorder = postorder(root, size);
+        for (int i = 0; i < size; i++) {
+            if (candidatePostorder[i] != postorder[i]) return false;
         }
 
         return true;
     }
 
-    public static TreeNode buildInPre(Map<Integer, Integer> inorder, int[] preorder, int low, int high, int preorderIdx) {
-        if (low > high) {
-            return null;
-        }
-        
-        int num = preorder[preorderIdx];
-        Integer mid = inorder.get(num);
-        if (mid == null || mid < low || mid > high) {
-            throw new RuntimeException("Invalid traversal");
-        }
-        
-        TreeNode node = new TreeNode(num);
+    public static TreeNode buildTree(int[] preorder) {
+        Stack stack = new Stack();
 
-        int leftIdx = 1 + preorderIdx;
-        node.setLeft(buildInPre(inorder, preorder, low, mid-1, leftIdx));
-        int rightIdx = 1 + preorderIdx + (mid - low);
-        node.setRight(buildInPre(inorder, preorder, mid+1, high, rightIdx));
+        TreeNode root = new TreeNode(preorder[0]);
+        stack.push(root);
+        for (int i = 1 ; i < preorder.length; i++) {
+            TreeNode node = new TreeNode(preorder[i]);
+            TreeNode parent = null;
+            while (stack.size > 0 && stack.peek().getVal() < preorder[i]) {
+                parent = stack.pop();
+            }
 
-        return node;
+            if (parent != null) parent.setRight(node);
+            else stack.peek().setLeft(node);
+
+            stack.push(node);
+        }
+
+        return root;
     }
 
-    private static void postorder(TreeNode node, List<Integer> out) {
-        if (node == null) return;
-        postorder(node.getLeft(), out);
-        postorder(node.getRight(), out);
-        out.add(node.getVal());
+    private static int[] inorder(TreeNode root, int size) {
+        int[] res = new int[size];
+        Stack stack = new Stack();
+
+        TreeNode curr = root;
+        for (int i = 0; i < size; i++) {
+            while (curr != null) {
+                stack.push(curr);
+                curr = curr.getLeft();
+            }
+            curr = stack.pop();
+            res[i] = curr.getVal();
+            curr = curr.getRight();
+        }
+
+        return res;
+    }
+
+    private static int[] postorder(TreeNode root, int size) {
+        int[] res = new int[size];
+        Stack s = new Stack();
+
+        s.push(root);
+
+        for (int i = size - 1; i >= 0; i--) {
+            TreeNode n = s.pop();
+            res[i] = n.getVal();
+            if (n.getLeft() != null) s.push(n.getLeft());
+            if (n.getRight() != null) s.push(n.getRight());
+        }
+
+        return res;
+        
     }
 }
